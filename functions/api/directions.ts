@@ -11,15 +11,20 @@ export const onRequestGet: PagesFunction<{ NAVER_CLIENT_ID:string; NAVER_CLIENT_
       });
     }
 
-    // Directions는 "경도,위도"
-    const api = `https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving?start=${sx},${sy}&goal=${ex},${ey}&option=trafast`;
+    const origin = request.headers.get("Origin") || `${u.protocol}//${u.host}`;
+    const keyId  = (env.NAVER_CLIENT_ID || "").trim();
+    const keySec = (env.NAVER_CLIENT_SECRET || "").trim();
+
+    // ⚠️ Directions는 경도,위도(lon,lat) 순서
+    const api = `https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving`
+              + `?start=${sx},${sy}&goal=${ex},${ey}&option=trafast`;
 
     const r = await fetch(api, {
       headers: {
         "Accept": "application/json",
-        "Referer": "https://proto.neoqik.com",
-        "X-NCP-APIGW-API-KEY-ID": env.NAVER_CLIENT_ID,
-        "X-NCP-APIGW-API-KEY": env.NAVER_CLIENT_SECRET
+        "Referer": origin,
+        "X-NCP-APIGW-API-KEY-ID": keyId,
+        "X-NCP-APIGW-API-KEY": keySec
       }
     });
 
