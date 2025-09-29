@@ -12,3 +12,21 @@
 .tile-emoji{font-size:32px}
 .tile-title{font-size:16px;font-weight:600}
 .page{padding:24px}
+
+/* 앱 헤더 */
+.app-header{position:sticky;top:0;display:grid;grid-template-columns:56px 1fr 56px;
+align-items:center;height:56px;padding:0 8px;background:var(--bg);border-bottom:1px solid rgba(128,128,128,.2);z-index:10}
+.app-header .center{text-align:center;font-weight:700}
+.icon-btn{background:transparent;border:0;font-size:20px;cursor:pointer;color:var(--text)}
+
+/* 페이지 전환(슬라이드 인) */
+.route-shell{overflow:hidden}
+.route-slide-in{animation:slideIn .24s ease both}
+@keyframes slideIn{from{transform:translateX(8%);opacity:.0} to{transform:none;opacity:1}}
+
+/* 로딩 오버레이 */
+.loading-overlay{position:fixed;inset:0;display:grid;place-items:center;
+background:rgba(0,0,0,.08);backdrop-filter:saturate(120%) blur(1px);z-index:999}
+.spinner{width:32px;height:32px;border-radius:50%;border:3px solid rgba(0,0,0,.15);
+border-top-color:var(--text);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
