@@ -1,5 +1,4 @@
 import { useState } from "react";
-
 type Addr = { x:string; y:string; roadAddress?:string; jibunAddress?:string };
 
 export default function ExpressPage(){
@@ -7,23 +6,23 @@ export default function ExpressPage(){
   const [end,setEnd]=useState<Addr|null>(null);
   const [result,setResult]=useState(""); const [mapUrl,setMapUrl]=useState("");
 
-  async function find(query:string){ if(query.trim().length<2) return [];
-    const r=await fetch(`/api/geocode?query=${encodeURIComponent(query)}`); const d=await r.json(); return d.addresses||[];
+  async function geocode(q:string){ if(q.trim().length<2) return [];
+    const r=await fetch(`/api/geocode?query=${encodeURIComponent(q)}`);
+    const d=await r.json(); return d.addresses||[];
   }
-  function km(lat1:number,lon1:number,lat2:number,lon2:number){ const R=6371,toRad=(d:number)=>d*Math.PI/180;
-    const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
-    const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  const km=(la1:number,lo1:number,la2:number,lo2:number)=>{ const R=6371; const toR=(d:number)=>d*Math.PI/180;
+    const dLa=toR(la2-la1), dLo=toR(lo2-lo1);
+    const a=Math.sin(dLa/2)**2+Math.cos(toR(la1))*Math.cos(toR(la2))*Math.sin(dLo/2)**2;
     return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
   }
-  function fare(k:number){ const base=3800,baseD=1.6,perM=100/132; return base+Math.max(0,k-baseD)*1000*perM; }
+  const fare=(k:number)=>3800+Math.max(0,k-1.6)*1000*(100/132);
 
   async function pick(which:"start"|"end"){
     const q=prompt((which==="start"?"출발지":"도착지")+" 검색어(2자 이상)"); if(!q) return;
-    const list=await find(q); if(!list.length){ alert("검색 결과 없음"); return; }
+    const list=await geocode(q); if(!list.length){ alert("검색 결과 없음"); return; }
     const label=(a:Addr)=>a.roadAddress||a.jibunAddress||`${a.y},${a.x}`;
     const idx=Number(prompt(list.map((a:Addr,i:number)=>`${i+1}. ${label(a)}`).join("\n")+"\n번호 선택"));
-    const a=list[idx-1]; if(!a) return;
-    which==="start"?setStart(a):setEnd(a);
+    const a=list[idx-1]; if(!a) return; which==="start"?setStart(a):setEnd(a);
   }
 
   function confirm(){
@@ -32,8 +31,7 @@ export default function ExpressPage(){
     const d=km(sy,sx,ey,ex); const f=fare(d);
     setResult(`출발지: ${start.roadAddress||start.jibunAddress}\n도착지: ${end.roadAddress||end.jibunAddress}\n거리: ${d.toFixed(2)} km\n예상 요금: 약 ${Math.round(f).toLocaleString()}원`);
     setMapUrl(`/api/static-map?startX=${sx}&startY=${sy}&endX=${ex}&endY=${ey}`);
-    localStorage.setItem("start",JSON.stringify(start));
-    localStorage.setItem("end",JSON.stringify(end));
+    localStorage.setItem("start",JSON.stringify(start)); localStorage.setItem("end",JSON.stringify(end));
   }
 
   return (
