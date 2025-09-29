@@ -1,32 +1,19 @@
-:root { font-family: system-ui, sans-serif; }
-*{box-sizing:border-box} body,html,#root{height:100%} body{margin:0;background:#0b1526;color:#fff}
-.container{min-height:100%;display:grid;place-items:center;padding:24px}
-.card{background:#111a2e;border:1px solid #20324f;border-radius:12px;padding:24px;max-width:360px;width:100%}
-.card h1{margin:0 0 16px}
-.card input{width:100%;padding:12px 14px;border-radius:8px;border:1px solid #39557f;background:#0b1526;color:#fff;margin-bottom:12px}
-.card button{width:100%;padding:12px 14px;border-radius:8px;border:0;background:#3b82f6;color:#fff;font-weight:600;cursor:pointer}
-.err{color:#f87171;margin-top:8px}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:24px;max-width:640px;margin:0 auto}
-.tile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px;border-radius:12px;background:#111a2e;border:1px solid #20324f;text-decoration:none;color:#fff}
+:root{ --bg:#fff; --text:#111; --card:#f5f5f5 }
+[data-theme="dark"]{ --bg:#0b1526; --text:#fff; --card:#111a2e }
+*{box-sizing:border-box} html,body,#root{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,sans-serif}
+.app-header{position:sticky;top:0;display:grid;grid-template-columns:56px 1fr 56px;align-items:center;height:56px;padding:0 8px;background:var(--bg);border-bottom:1px solid rgba(128,128,128,.2);z-index:10}
+.icon-btn{background:transparent;border:0;font-size:20px;color:var(--text);cursor:pointer}
+.route-shell{overflow:hidden}
+.loading-overlay{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.08);backdrop-filter:blur(1px);z-index:999}
+.spinner{width:32px;height:32px;border-radius:50%;border:3px solid rgba(0,0,0,.15);border-top-color:var(--text);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px;max-width:640px;margin:0 auto}
+.tile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px;border-radius:12px;background:var(--card);border:1px solid rgba(128,128,128,.2);text-decoration:none;color:var(--text)}
 .tile:hover{border-color:#3b82f6}
 .tile-emoji{font-size:32px}
-.tile-title{font-size:16px;font-weight:600}
-.page{padding:24px}
-
-/* 앱 헤더 */
-.app-header{position:sticky;top:0;display:grid;grid-template-columns:56px 1fr 56px;
-align-items:center;height:56px;padding:0 8px;background:var(--bg);border-bottom:1px solid rgba(128,128,128,.2);z-index:10}
-.app-header .center{text-align:center;font-weight:700}
-.icon-btn{background:transparent;border:0;font-size:20px;cursor:pointer;color:var(--text)}
-
-/* 페이지 전환(슬라이드 인) */
-.route-shell{overflow:hidden}
-.route-slide-in{animation:slideIn .24s ease both}
-@keyframes slideIn{from{transform:translateX(8%);opacity:.0} to{transform:none;opacity:1}}
-
-/* 로딩 오버레이 */
-.loading-overlay{position:fixed;inset:0;display:grid;place-items:center;
-background:rgba(0,0,0,.08);backdrop-filter:saturate(120%) blur(1px);z-index:999}
-.spinner{width:32px;height:32px;border-radius:50%;border:3px solid rgba(0,0,0,.15);
-border-top-color:var(--text);animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
+.tile-title{font-size:16px;font-weight:700}
+.container{padding:16px;max-width:720px;margin:0 auto}
+input{width:100%;padding:12px 14px;border-radius:8px;border:1px solid rgba(128,128,128,.35);background:transparent;color:var(--text);margin-bottom:12px}
+button{padding:12px 14px;border-radius:8px;border:0;background:#3b82f6;color:#fff;font-weight:700;cursor:pointer}
+pre{white-space:pre-wrap;background:var(--card);padding:12px;border-radius:8px}
