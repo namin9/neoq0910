@@ -8,27 +8,17 @@ const titles: Record<string,string> = {
   "/bullet": "총알 예매",
 };
 
-export default function Header() {
-  const nav = useNavigate();
+export default function Header(){
   const { pathname } = useLocation();
-  const title = titles[pathname] ?? "Proto";
-
-  const goBack = () => {
-    if (window.history.length > 1) nav(-1);
-    else nav("/");
-  };
-
+  const nav = useNavigate();
   const showBack = pathname !== "/";
-
+  const title = titles[pathname] ?? "Proto";
+  const goBack = () => (window.history.length>1 ? nav(-1) : nav("/"));
   return (
     <header className="app-header">
-      <div className="left">
-        {showBack ? <button className="icon-btn" onClick={goBack}>←</button> : <span/>}
-      </div>
+      <div className="left">{showBack && <button className="icon-btn" onClick={goBack}>←</button>}</div>
       <div className="center">{title}</div>
-      <div className="right">
-        <button className="icon-btn" aria-label="설정">⚙️</button>
-      </div>
+      <div className="right"><button className="icon-btn" aria-label="설정">⚙️</button></div>
     </header>
   );
 }
