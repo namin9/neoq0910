@@ -10,6 +10,7 @@ const Express = lazy(()=>import("./routes/ExpressPage"));
 const Taxi    = lazy(()=>import("./routes/Taxi"));
 const Quick   = lazy(()=>import("./routes/Quick"));
 const Bullet  = lazy(()=>import("./routes/Bullet"));
+const MapSummary = lazy(()=>import("./routes/MapSummary"));
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
             <Route element={<ProtectedRoute/>}>
               <Route path="/"         element={<><Header/><Home/></>} />
               <Route path="/express"  element={<><Header/><Express/></>} />
+              <Route path="/map-summary" element={<><Header/><MapSummary/></>} />
               <Route path="/taxi"     element={<><Header/><Taxi/></>} />
               <Route path="/quick"    element={<><Header/><Quick/></>} />
               <Route path="/bullet"   element={<><Header/><Bullet/></>} />
