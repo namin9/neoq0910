@@ -1,0 +1,29 @@
+[
+  {
+    "name": "서울고속버스터미널",
+    "code": "KR-SEG",
+    "latitude": 37.504167,
+    "longitude": 127.004722,
+    "city": "서울",
+    "routes": ["경부선", "영동선", "호남선"],
+    "platforms": 60
+  },
+  {
+    "name": "센트럴시티터미널",
+    "code": "KR-CTR",
+    "latitude": 37.504389,
+    "longitude": 127.002111,
+    "city": "서울",
+    "routes": ["영동선", "호남선"],
+    "platforms": 45
+  },
+  {
+    "name": "부산종합버스터미널",
+    "code": "KR-BBT",
+    "latitude": 35.170278,
+    "longitude": 129.089722,
+    "city": "부산",
+    "routes": ["경부선", "중앙고속도로"],
+    "platforms": 41
+  }
+]

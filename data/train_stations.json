@@ -1,0 +1,29 @@
+[
+  {
+    "name": "서울역",
+    "code": "KR-SEO",
+    "latitude": 37.554722,
+    "longitude": 126.970833,
+    "city": "서울",
+    "lines": ["경부선", "호남선", "공항철도"],
+    "opened": 1900
+  },
+  {
+    "name": "부산역",
+    "code": "KR-BUS",
+    "latitude": 35.115111,
+    "longitude": 129.041667,
+    "city": "부산",
+    "lines": ["경부선", "동해선"],
+    "opened": 1908
+  },
+  {
+    "name": "대전역",
+    "code": "KR-DAE",
+    "latitude": 36.3325,
+    "longitude": 127.434167,
+    "city": "대전",
+    "lines": ["경부선", "호남선"],
+    "opened": 1905
+  }
+]
