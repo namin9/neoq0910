@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>상세 경로 요약</title>
+    <link rel="stylesheet" href="/map-summary.css" />
+  </head>
+  <body>
+    <main class="container map-summary" id="map-summary-root">
+      <h2>🗺️ 상세 경로 요약</h2>
+      <p class="muted" id="loading-message">경로 정보를 불러오는 중입니다...</p>
+      <p class="alert hidden" id="error-message" role="alert"></p>
+
+      <section class="card hidden" id="basic-info">
+        <h3>기본 정보</h3>
+        <dl class="meta">
+          <div>
+            <dt>출발지</dt>
+            <dd id="start-label">-</dd>
+          </div>
+          <div>
+            <dt>도착지</dt>
+            <dd id="end-label">-</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="card hidden" id="summary-card">
+        <h3>요약</h3>
+        <dl class="meta">
+          <div>
+            <dt>총 거리</dt>
+            <dd id="summary-distance">-</dd>
+          </div>
+          <div>
+            <dt>예상 소요 시간</dt>
+            <dd id="summary-duration">-</dd>
+          </div>
+          <div class="hidden" id="summary-taxi">
+            <dt>예상 요금</dt>
+            <dd id="summary-taxi-fare">-</dd>
+          </div>
+          <div class="hidden" id="summary-fuel">
+            <dt>연료비</dt>
+            <dd id="summary-fuel-price">-</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="card hidden" id="guide-card">
+        <h3>이동 안내</h3>
+        <ol class="guide" id="guide-list"></ol>
+      </section>
+
+      <section class="card hidden" id="map-card">
+        <h3>지도 미리보기</h3>
+        <img id="map-image" class="map-preview" alt="경로 미리보기 지도" />
+      </section>
+    </main>
+    <script type="module" src="/script/map-summary.js"></script>
+  </body>
+</html>
