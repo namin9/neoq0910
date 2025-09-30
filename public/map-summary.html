@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>네오퀵 · 경로 요약</title>
+    <link rel="stylesheet" href="/map-summary.css" />
+  </head>
+  <body>
+    <main class="container map-summary" data-role="container">
+      <h2>🗺️ 상세 경로 요약</h2>
+      <p class="muted" data-role="loading">경로 정보를 불러오는 중입니다...</p>
+      <p class="alert hidden" data-role="error"></p>
+
+      <section class="card" data-role="base">
+        <h3>기본 정보</h3>
+        <dl class="meta">
+          <div>
+            <dt>출발지</dt>
+            <dd data-field="start">-</dd>
+          </div>
+          <div>
+            <dt>도착지</dt>
+            <dd data-field="end">-</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="card hidden" data-role="summary">
+        <h3>요약</h3>
+        <dl class="meta">
+          <div>
+            <dt>총 거리</dt>
+            <dd data-field="distance">-</dd>
+          </div>
+          <div>
+            <dt>예상 소요 시간</dt>
+            <dd data-field="duration">-</dd>
+          </div>
+          <div class="hidden" data-field-section="taxiFare">
+            <dt>예상 요금</dt>
+            <dd data-field="taxiFare">-</dd>
+          </div>
+          <div class="hidden" data-field-section="fuelPrice">
+            <dt>연료비</dt>
+            <dd data-field="fuelPrice">-</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="card guide-section hidden">
+        <h3>이동 안내</h3>
+        <ol class="guide" data-role="guide"></ol>
+      </section>
+
+      <section class="card hidden" data-role="map-section">
+        <h3>지도 미리보기</h3>
+        <img class="map-preview" data-role="map-preview" alt="경로 미리보기 지도" />
+      </section>
+    </main>
+
+    <script type="module" src="/script/map-summary.js"></script>
+  </body>
+</html>
