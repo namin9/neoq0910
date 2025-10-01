@@ -176,7 +176,7 @@ export default function ExpressPage() {
             <input
               value={startInput}
               onChange={(e) => { setStartInput(e.target.value); setError(null); }}
-              placeholder="출발지 주소/장소를 입력하세요"  {/* ✅ 플레이스홀더도 주소/장소로 변경 */}
+              placeholder="출발지 주소/장소를 입력하세요"
               style={{ flex: 1, padding: "8px 12px", borderRadius: 4, border: "1px solid #ccc" }}
             />
             {start ? (
@@ -206,7 +206,7 @@ export default function ExpressPage() {
             <input
               value={endInput}
               onChange={(e) => { setEndInput(e.target.value); setError(null); }}
-              placeholder="도착지 주소/장소를 입력하세요"   {/* ✅ 변경 */}
+              placeholder="도착지 주소/장소를 입력하세요"
               style={{ flex: 1, padding: "8px 12px", borderRadius: 4, border: "1px solid #ccc" }}
             />
             {end ? (
