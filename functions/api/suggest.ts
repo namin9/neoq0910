@@ -6,7 +6,6 @@ async function fromKakao(q: string, env: any): Promise<Item[]> {
   if (!key) return [];
   const headers = { "Authorization": "KakaoAK " + key };
 
-  // 1) 키워드(장소/도로/POI)
   const kw = await fetch(
     "https://dapi.kakao.com/v2/local/search/keyword.json?size=10&query=" + encodeURIComponent(q),
     { headers }
@@ -16,11 +15,10 @@ async function fromKakao(q: string, env: any): Promise<Item[]> {
     type: "place",
     title: d.place_name,
     subtitle: d.road_address_name || d.address_name || "",
-    x: Number(d.x), // lon
-    y: Number(d.y)  // lat
+    x: Number(d.x),
+    y: Number(d.y)
   }));
 
-  // 2) 주소 문자열(정확 주소일 때 보강)
   const ad = await fetch(
     "https://dapi.kakao.com/v2/local/search/address.json?size=5&query=" + encodeURIComponent(q),
     { headers }
@@ -33,7 +31,6 @@ async function fromKakao(q: string, env: any): Promise<Item[]> {
     x: Number(d.x), y: Number(d.y)
   }));
 
-  // 중복 제거
   const seen = new Set<string>();
   const out: Item[] = [];
   for (const it of [...items1, ...items2]) {
@@ -43,7 +40,6 @@ async function fromKakao(q: string, env: any): Promise<Item[]> {
   return out;
 }
 
-// (선택) 네이버 '검색 API-지역'을 쓰는 경우: NAVER_SEARCH_CLIENT_ID/SECRET 필요
 async function fromNaverLocal(q: string, env: any): Promise<Item[]> {
   const id = (env.NAVER_SEARCH_CLIENT_ID || "").trim();
   const sec = (env.NAVER_SEARCH_CLIENT_SECRET || "").trim();
@@ -55,7 +51,7 @@ async function fromNaverLocal(q: string, env: any): Promise<Item[]> {
   if (!r.ok) return [];
   const j = await r.json().catch(() => ({} as any));
   const raw = j.items || [];
-  // 좌표가 지도 내부 좌표계일 수 있어, 여기서는 address만 표기(좌표는 후처리에서 보강 가능)
+  // 네이버 Local은 좌표 일관성이 떨어질 수 있어 주소만 우선 표시(좌표는 카카오/맵박스로 보강)
   return raw.map((it: any) => ({
     type: "place",
     title: String(it.title || "").replace(/<[^>]+>/g, ""),
@@ -108,11 +104,9 @@ export const onRequestGet: PagesFunction<{
   }
 
   let items: Item[] = [];
-  const pipe: Provider[] = provider
-    ? [provider]
-    : ["kakao", "naver-local", "mapbox"]; // 기본 폴백 순서
+  const chain: Provider[] = provider ? [provider] : ["kakao", "naver-local", "mapbox"];
 
-  for (const p of pipe) {
+  for (const p of chain) {
     let chunk: Item[] = [];
     if (p === "kakao")       chunk = await fromKakao(q, env);
     else if (p === "naver-local") chunk = await fromNaverLocal(q, env);
