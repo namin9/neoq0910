@@ -4,6 +4,15 @@ type Addr = { x: string; y: string; roadAddress?: string; jibunAddress?: string 
 type TrafastSummary = { distance: number; duration: number; tollFare?: number; taxiFare?: number; fuelPrice?: number };
 type GuideEntry = { instructions?: string; distance?: number; duration?: number };
 
+type StoredRoute = {
+  start: Addr;
+  end: Addr;
+  waypoints?: Addr[];
+  summary?: TrafastSummary | null;
+};
+
+const STORAGE_KEY = "expressRoute";
+
 type RoutePayload = {
   summary?: TrafastSummary;
   guide?: GuideEntry[];
@@ -45,6 +54,7 @@ const formatCurrency = (n?: number) => {
 export default function MapSummary() {
   const [start, setStart] = useState<Addr | null>(null);
   const [end, setEnd] = useState<Addr | null>(null);
+  const [waypoints, setWaypoints] = useState<Addr[]>([]);
   const [summary, setSummary] = useState<TrafastSummary | null>(null);
   const [guide, setGuide] = useState<GuideEntry[]>([]);
   const [mapUrl, setMapUrl] = useState("");
@@ -52,27 +62,46 @@ export default function MapSummary() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const startRaw = typeof window !== "undefined" ? window.localStorage.getItem("start") : null;
-    const endRaw = typeof window !== "undefined" ? window.localStorage.getItem("end") : null;
-
-    if (!startRaw || !endRaw) {
-      setError("저장된 출발/도착 정보가 없습니다. 특송 경로 계산 화면에서 경로를 먼저 계산해주세요.");
-      setLoading(false);
-      return;
-    }
-
     try {
-      const parsedStart = JSON.parse(startRaw) as Addr;
-      const parsedEnd = JSON.parse(endRaw) as Addr;
+      const storage = typeof window !== "undefined" ? window.localStorage : null;
+      const savedRoute = storage?.getItem(STORAGE_KEY) || "";
+      let parsed: StoredRoute | null = null;
+
+      if (savedRoute) {
+        parsed = JSON.parse(savedRoute) as StoredRoute;
+      } else {
+        const startRaw = storage?.getItem("start") || null;
+        const endRaw = storage?.getItem("end") || null;
+        if (startRaw && endRaw) {
+          parsed = { start: JSON.parse(startRaw) as Addr, end: JSON.parse(endRaw) as Addr, waypoints: [], summary: null };
+        }
+      }
+
+      if (!parsed?.start || !parsed?.end) {
+        throw new Error("저장된 출발/도착 정보가 없습니다. 특송 경로 계산 화면에서 경로를 먼저 계산해주세요.");
+      }
+
+      const parsedStart = parsed.start;
+      const parsedEnd = parsed.end;
+      const parsedWaypoints = Array.isArray(parsed.waypoints) ? parsed.waypoints.filter(Boolean) : [];
+
       setStart(parsedStart);
       setEnd(parsedEnd);
+      setWaypoints(parsedWaypoints);
+      if (parsed.summary) {
+        setSummary(parsed.summary);
+      }
+
       const params = new URLSearchParams({
         startX: parsedStart.x,
         startY: parsedStart.y,
         endX: parsedEnd.x,
         endY: parsedEnd.y
       });
-      const map = `/api/static-map?${params.toString()}`;
+      if (parsedWaypoints.length) {
+        params.set("waypoints", parsedWaypoints.map((wp) => `${wp.x},${wp.y}`).join("|"));
+      }
+      const map = `/api/static-map?startX=${parsedStart.x}&startY=${parsedStart.y}&endX=${parsedEnd.x}&endY=${parsedEnd.y}`;
       setMapUrl(map);
 
       (async () => {
@@ -91,6 +120,8 @@ export default function MapSummary() {
           }
           setSummary(trafast.summary);
           setGuide(trafast.guide || []);
+          const updated: StoredRoute = { start: parsedStart, end: parsedEnd, waypoints: parsedWaypoints, summary: trafast.summary };
+          storage?.setItem(STORAGE_KEY, JSON.stringify(updated));
           setLoading(false);
         } catch (err) {
           console.error(err);
@@ -122,6 +153,16 @@ export default function MapSummary() {
                 <dt>출발지</dt>
                 <dd>{label(start)}</dd>
               </div>
+              {waypoints.length > 0 && (
+                <div>
+                  <dt>경유지</dt>
+                  <dd>
+                    {waypoints.map((wp, idx) => (
+                      <div key={`${wp.x}-${wp.y}-${idx}`}>{`경유지 ${idx + 1}: ${label(wp)}`}</div>
+                    ))}
+                  </dd>
+                </div>
+              )}
               <div>
                 <dt>도착지</dt>
                 <dd>{label(end)}</dd>
