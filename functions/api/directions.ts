@@ -1,4 +1,9 @@
-export const onRequestGet: PagesFunction<{ NAVER_CLIENT_ID:string; NAVER_CLIENT_SECRET:string; }> =
+export const onRequestGet: PagesFunction<{
+  NAVER_GEOCODE_KEY_ID?: string;
+  NAVER_GEOCODE_KEY?: string;
+  NAVER_CLIENT_ID?: string;
+  NAVER_CLIENT_SECRET?: string;
+}> =
   async ({ request, env }) => {
     const u = new URL(request.url);
     const sx = u.searchParams.get("startX");
@@ -144,8 +149,10 @@ export const onRequestGet: PagesFunction<{ NAVER_CLIENT_ID:string; NAVER_CLIENT_
     }
 
     const origin = request.headers.get("Origin") || `${u.protocol}//${u.host}`;
-    const keyId  = (env.NAVER_CLIENT_ID || "").trim();
-    const keySec = (env.NAVER_CLIENT_SECRET || "").trim();
+    const keyId =
+      (env.NAVER_GEOCODE_KEY_ID || env.NAVER_CLIENT_ID || "").trim();
+    const keySec =
+      (env.NAVER_GEOCODE_KEY || env.NAVER_CLIENT_SECRET || "").trim();
 
     // ⚠️ Directions는 경도,위도(lon,lat) 순서
     const waypointQuery = waypointCoords
