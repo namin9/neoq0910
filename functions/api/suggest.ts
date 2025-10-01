@@ -1,7 +1,15 @@
 type Item = { type: "place"|"address"; title: string; subtitle?: string; x: number; y: number; };
 type Provider = "kakao" | "naver-local" | "mapbox";
+type SuggestEnv = {
+  KAKAO_REST_KEY?: string;
+  NAVER_SEARCH_CLIENT_ID?: string;
+  NAVER_SEARCH_CLIENT_SECRET?: string;
+  NAVER_GEOCODE_KEY_ID?: string;
+  NAVER_GEOCODE_KEY?: string;
+  MAPBOX_TOKEN?: string;
+};
 
-async function fromNaverGeocode(address: string, env: any): Promise<{ x: number; y: number } | null> {
+async function fromNaverGeocode(address: string, env: SuggestEnv): Promise<{ x: number; y: number } | null> {
   const id = (env.NAVER_GEOCODE_KEY_ID || "").trim();
   const key = (env.NAVER_GEOCODE_KEY || "").trim();
   const query = address.trim();
@@ -22,7 +30,7 @@ async function fromNaverGeocode(address: string, env: any): Promise<{ x: number;
   }
 }
 
-async function fromKakao(q: string, env: any): Promise<Item[]> {
+async function fromKakao(q: string, env: SuggestEnv): Promise<Item[]> {
   const key = (env.KAKAO_REST_KEY || "").trim();
   if (!key) return [];
   const headers = { "Authorization": "KakaoAK " + key };
@@ -61,7 +69,7 @@ async function fromKakao(q: string, env: any): Promise<Item[]> {
   return out;
 }
 
-async function fromNaverLocal(q: string, env: any): Promise<Item[]> {
+async function fromNaverLocal(q: string, env: SuggestEnv): Promise<Item[]> {
   const id = (env.NAVER_SEARCH_CLIENT_ID || "").trim();
   const sec = (env.NAVER_SEARCH_CLIENT_SECRET || "").trim();
   if (!id || !sec) return [];
@@ -72,24 +80,25 @@ async function fromNaverLocal(q: string, env: any): Promise<Item[]> {
   if (!r.ok) return [];
   const j = await r.json().catch(() => ({} as any));
   const raw = j.items || [];
-  const geocodeCache = new Map<string, { x: number; y: number } | null>();
+  const geocodeCache = new Map<string, Promise<{ x: number; y: number } | null>>();
   const out: Item[] = [];
   for (const it of raw) {
     const title = String(it.title || "").replace(/<[^>]+>/g, "");
     const subtitle = (it.roadAddress || it.address || "").trim();
     if (!subtitle) continue;
-    let coords = geocodeCache.get(subtitle);
-    if (!geocodeCache.has(subtitle)) {
-      coords = await fromNaverGeocode(subtitle, env);
-      geocodeCache.set(subtitle, coords || null);
+    let lookup = geocodeCache.get(subtitle);
+    if (!lookup) {
+      lookup = fromNaverGeocode(subtitle, env);
+      geocodeCache.set(subtitle, lookup);
     }
+    const coords = await lookup;
     if (!coords) continue;
     out.push({ type: "place", title, subtitle, x: coords.x, y: coords.y });
   }
   return out;
 }
 
-async function fromMapbox(q: string, env: any): Promise<Item[]> {
+async function fromMapbox(q: string, env: SuggestEnv): Promise<Item[]> {
   const token = (env.MAPBOX_TOKEN || "").trim();
   if (!token) return [];
   const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?autocomplete=true&language=ko&limit=10&access_token=${token}`;
@@ -117,14 +126,7 @@ function dedup(items: Item[], limit = 12): Item[] {
   return out;
 }
 
-export const onRequestGet: PagesFunction<{
-  KAKAO_REST_KEY?: string;
-  NAVER_SEARCH_CLIENT_ID?: string;
-  NAVER_SEARCH_CLIENT_SECRET?: string;
-  NAVER_GEOCODE_KEY_ID?: string;
-  NAVER_GEOCODE_KEY?: string;
-  MAPBOX_TOKEN?: string;
-}> = async ({ request, env }) => {
+export const onRequestGet: PagesFunction<SuggestEnv> = async ({ request, env }) => {
   const u = new URL(request.url);
   const q = (u.searchParams.get("q") || "").trim();
   const provider = (u.searchParams.get("provider") || "").toLowerCase() as Provider | "";
