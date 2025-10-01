@@ -16,8 +16,14 @@ export const onRequestGet: PagesFunction<{ NAVER_CLIENT_ID:string; NAVER_CLIENT_
     const keySec = (env.NAVER_CLIENT_SECRET || "").trim();
 
     // ⚠️ Directions는 경도,위도(lon,lat) 순서
-    const api = `https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving`
-              + `?start=${sx},${sy}&goal=${ex},${ey}&option=trafast`;
+    const waypoints = u.searchParams.get("waypoints");
+
+    let api = `https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving`
+            + `?start=${sx},${sy}&goal=${ex},${ey}&option=trafast`;
+
+    if (waypoints) {
+      api += `&waypoints=${encodeURIComponent(waypoints)}`;
+    }
 
     const r = await fetch(api, {
       headers: {

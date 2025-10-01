@@ -30,10 +30,14 @@ pre{white-space:pre-wrap;background:var(--card);padding:12px;border-radius:8px}
 .map-summary .meta div{display:flex;flex-direction:column;gap:4px}
 .map-summary .meta dt{font-size:12px;text-transform:uppercase;color:rgba(128,128,128,.85);letter-spacing:.08em}
 .map-summary .meta dd{margin:0;font-size:16px;font-weight:600;color:var(--text)}
+.map-summary .waypoint-list{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:600;color:var(--text)}
 .map-summary .guide{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:12px}
 .map-summary .guide li{line-height:1.5}
 .map-summary .guide p{margin:0;font-weight:600}
 .map-summary .guide .muted{font-size:13px}
+.map-summary .guide-segment{list-style:none;margin:0;padding:6px 0 2px;border-top:1px dashed rgba(128,128,128,.35);font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:rgba(37,99,235,.9)}
+.map-summary .guide-segment:first-child{border-top:0;padding-top:0}
+.map-summary .guide-segment span{display:inline-block;padding:4px 10px;border-radius:999px;background:rgba(59,130,246,.12);color:#1d4ed8;font-weight:700;text-transform:none;letter-spacing:0}
 .map-preview{width:100%;border-radius:10px;margin-top:12px;box-shadow:0 10px 22px rgba(15,23,42,.12)}
 
 .page{padding:16px;max-width:720px;margin:0 auto}

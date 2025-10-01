@@ -71,6 +71,111 @@ const createGuideItem = (guide) => {
   return li;
 };
 
+const createGuideSegmentItem = (label) => {
+  const li = document.createElement("li");
+  li.className = "guide-segment";
+  const span = document.createElement("span");
+  span.textContent = label;
+  li.append(span);
+  return li;
+};
+
+const parseStoredRoute = () => {
+  if (typeof window === "undefined" || !window.localStorage) return null;
+  const storage = window.localStorage;
+  const routeRaw = storage.getItem("route");
+  const startRaw = storage.getItem("start");
+  const endRaw = storage.getItem("end");
+
+  if (routeRaw) {
+    try {
+      const parsed = JSON.parse(routeRaw);
+      if (parsed?.start && parsed?.end) {
+        return {
+          start: parsed.start,
+          end: parsed.end,
+          waypoints: Array.isArray(parsed.waypoints) ? parsed.waypoints.filter(Boolean) : []
+        };
+      }
+    } catch (err) {
+      console.error("Failed to parse stored route", err);
+    }
+  }
+
+  if (startRaw && endRaw) {
+    try {
+      return {
+        start: JSON.parse(startRaw),
+        end: JSON.parse(endRaw),
+        waypoints: []
+      };
+    } catch (err) {
+      console.error("Failed to parse fallback route", err);
+    }
+  }
+
+  return null;
+};
+
+const waypointQueryValue = (waypoints) =>
+  waypoints
+    .filter((wp) => wp && typeof wp.x === "string" && typeof wp.y === "string")
+    .map((wp) => `${wp.x},${wp.y}`)
+    .join("|");
+
+const buildSegmentTitles = (start, waypoints, end) => {
+  const points = [start, ...waypoints, end].filter(Boolean);
+  const titles = [];
+  const nameForIndex = (index) => {
+    if (index === 0) return "출발지";
+    if (index === points.length - 1) return "도착지";
+    return `경유지 ${index}`;
+  };
+  for (let i = 0; i < points.length - 1; i += 1) {
+    titles.push(`${nameForIndex(i)} → ${nameForIndex(i + 1)}`);
+  }
+  return titles;
+};
+
+const decorateGuide = (guide, segmentTitles, waypointCount) => {
+  if (!Array.isArray(guide) || !guide.length) return [];
+
+  const items = [];
+  if (segmentTitles[0]) {
+    items.push({ type: "segment", label: segmentTitles[0] });
+  }
+
+  let currentSegment = 0;
+  let waypointHitCount = 0;
+
+  const isWaypointArrival = (entry) => {
+    if (waypointHitCount >= waypointCount) return false;
+    if (typeof entry?.type === "number" && entry.type === 3) return true;
+    const normalized = typeof entry?.instructions === "string" ? entry.instructions.replace(/\s+/g, "") : "";
+    if (!normalized) return false;
+    return /경유지|경유|passpoint|waypoint|중간지점/i.test(normalized);
+  };
+
+  guide.forEach((entry) => {
+    items.push({ type: "entry", entry });
+
+    if (isWaypointArrival(entry)) {
+      waypointHitCount += 1;
+      currentSegment += 1;
+      if (segmentTitles[currentSegment]) {
+        items.push({ type: "segment", label: segmentTitles[currentSegment] });
+      }
+    }
+  });
+
+  while (currentSegment < segmentTitles.length - 1) {
+    currentSegment += 1;
+    items.push({ type: "segment", label: segmentTitles[currentSegment] });
+  }
+
+  return items;
+};
+
 async function initialise() {
   const container = document.querySelector("[data-role='container']") || document.body;
   const loadingEl = document.querySelector("[data-role='loading']");
@@ -79,9 +184,8 @@ async function initialise() {
   const summarySection = document.querySelector("[data-role='summary']");
   const mapSection = document.querySelector("[data-role='map-section']");
   const mapImg = document.querySelector("[data-role='map-preview']");
-
-  const startRaw = window.localStorage ? window.localStorage.getItem("start") : null;
-  const endRaw = window.localStorage ? window.localStorage.getItem("end") : null;
+  const waypointList = document.querySelector("[data-role='waypoints']");
+  const waypointEmpty = document.querySelector("[data-role='waypoints-empty']");
 
   container.classList.remove("state-error");
   if (errorEl) {
@@ -89,24 +193,46 @@ async function initialise() {
     errorEl.classList.add("hidden");
   }
 
-  if (!startRaw || !endRaw) {
+  const storedRoute = parseStoredRoute();
+
+  if (!storedRoute) {
     if (errorEl) {
-      errorEl.textContent = "저장된 출발/도착 정보가 없습니다. 특송 경로 계산 화면에서 경로를 먼저 계산해주세요.";
+      errorEl.textContent = "저장된 경로 정보가 없습니다. 특송 경로 계산 화면에서 경로를 먼저 계산해주세요.";
       showElement(errorEl, true);
     }
     showElement(loadingEl, false);
     showElement(summarySection, false);
     showElement(mapSection, false);
     showElement(guideList?.closest("section"), false);
+    showElement(waypointList, false);
+    showElement(waypointEmpty, false);
     container.classList.add("state-error");
     return;
   }
 
   try {
-    const parsedStart = JSON.parse(startRaw);
-    const parsedEnd = JSON.parse(endRaw);
+    const parsedStart = storedRoute.start;
+    const parsedEnd = storedRoute.end;
+    const parsedWaypoints = Array.isArray(storedRoute.waypoints) ? storedRoute.waypoints : [];
     updateText("start", label(parsedStart));
     updateText("end", label(parsedEnd));
+
+    if (parsedWaypoints.length && waypointList) {
+      waypointList.innerHTML = "";
+      parsedWaypoints.forEach((wp, idx) => {
+        const li = document.createElement("li");
+        li.textContent = `${idx + 1}. ${label(wp)}`;
+        waypointList.append(li);
+      });
+      showElement(waypointList, true);
+      showElement(waypointEmpty, false);
+    } else {
+      if (waypointList) {
+        waypointList.innerHTML = "";
+      }
+      showElement(waypointList, false);
+      showElement(waypointEmpty, true);
+    }
 
     const params = new URLSearchParams({
       startX: parsedStart.x,
@@ -114,6 +240,10 @@ async function initialise() {
       endX: parsedEnd.x,
       endY: parsedEnd.y
     });
+
+    if (parsedWaypoints.length) {
+      params.set("waypoints", waypointQueryValue(parsedWaypoints));
+    }
 
     if (mapImg) {
       mapImg.src = `/api/static-map?${params.toString()}`;
@@ -155,10 +285,17 @@ async function initialise() {
         showElement(fuelRow, false);
       }
 
-      if (Array.isArray(trafast.guide) && trafast.guide.length && guideList) {
+      const segmentTitles = buildSegmentTitles(parsedStart, parsedWaypoints, parsedEnd);
+      const decoratedGuide = decorateGuide(trafast.guide, segmentTitles, parsedWaypoints.length);
+
+      if (decoratedGuide.length && guideList) {
         guideList.innerHTML = "";
-        trafast.guide.forEach((guide) => {
-          guideList.append(createGuideItem(guide));
+        decoratedGuide.forEach((item) => {
+          if (item.type === "segment") {
+            guideList.append(createGuideSegmentItem(item.label));
+          } else {
+            guideList.append(createGuideItem(item.entry));
+          }
         });
         showElement(guideList.closest("section"), true);
       } else if (guideList) {

@@ -11,9 +11,20 @@ export const onRequestGet: PagesFunction<{ NAVER_CLIENT_ID:string; NAVER_CLIENT_
     const keyId  = (env.NAVER_CLIENT_ID || "").trim();
     const keySec = (env.NAVER_CLIENT_SECRET || "").trim();
 
-    const api = `https://naveropenapi.apigw.ntruss.com/map-static/v2/raster?w=800&h=480&scale=2`
-              + `&markers=type:d|size:mid|pos:${sx} ${sy}|label:S`
-              + `&markers=type:d|size:mid|pos:${ex} ${ey}|label:E`;
+    const waypoints = (u.searchParams.get("waypoints") || "")
+      .split("|")
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+      .map((pair) => pair.split(",", 2))
+      .filter(([wx, wy]) => wx && wy);
+
+    let api = `https://naveropenapi.apigw.ntruss.com/map-static/v2/raster?w=800&h=480&scale=2`
+            + `&markers=type:d|size:mid|pos:${sx} ${sy}|label:S`
+            + `&markers=type:d|size:mid|pos:${ex} ${ey}|label:E`;
+
+    waypoints.forEach(([wx, wy], idx) => {
+      api += `&markers=type:d|size:small|pos:${wx} ${wy}|label:${idx + 1}`;
+    });
 
     const r = await fetch(api, {
       headers: {

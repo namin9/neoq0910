@@ -134,7 +134,8 @@ export default function ExpressPage() {
     if (typeof window === "undefined") return;
     const savedStart = window.localStorage.getItem("start");
     const savedEnd = window.localStorage.getItem("end");
-    setHasSavedRoute(!!(savedStart && savedEnd));
+    const savedRoute = window.localStorage.getItem("route");
+    setHasSavedRoute(Boolean(savedRoute || (savedStart && savedEnd)));
   }, []);
 
   function confirm() {
@@ -147,6 +148,7 @@ export default function ExpressPage() {
     setMapUrl(`/api/static-map?startX=${sx}&startY=${sy}&endX=${ex}&endY=${ey}`);
     localStorage.setItem("start", JSON.stringify(start));
     localStorage.setItem("end", JSON.stringify(end));
+    localStorage.setItem("route", JSON.stringify({ start, end, waypoints: [] }));
     setHasSavedRoute(true);
   }
 
