@@ -54,7 +54,7 @@ export default function ExpressPage() {
    */
   async function suggest(q: string, signal?: AbortSignal): Promise<Addr[]> {
     if (q.trim().length < 2) return [];
-    const r = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`, { signal });
+    const r = await fetch(`/api/suggest?q=${encodeURIComponent(q)}&provider=kakao`, { signal });
     if (!r.ok) {
       throw new Error("주소/장소 추천 중 오류가 발생했어요.");
     }
@@ -85,6 +85,19 @@ export default function ExpressPage() {
   const fare = (k: number) => 3800 + Math.max(0, k - 1.6) * 1000 * (100 / 132);
 
   const label = (a: Addr) => a.roadAddress || a.jibunAddress || `${a.y}, ${a.x}`;
+
+  async function geocodeWithNaver(query: string): Promise<{ x: string; y: string }> {
+    const response = await fetch(`/api/geocode?query=${encodeURIComponent(query)}`);
+    if (!response.ok) {
+      throw new Error("네이버 지오코딩 호출에 실패했어요. 잠시 후 다시 시도해주세요.");
+    }
+    const data = await response.json();
+    const first = data?.addresses?.[0];
+    if (!first || !first.x || !first.y) {
+      throw new Error("네이버에서 좌표를 찾지 못했어요. 다른 주소로 검색해 주세요.");
+    }
+    return { x: String(first.x), y: String(first.y) };
+  }
 
   /** ✅ 변경 2) startInput → /api/suggest */
   useEffect(() => {
@@ -137,17 +150,52 @@ export default function ExpressPage() {
     setHasSavedRoute(!!(savedStart && savedEnd));
   }, []);
 
-  function confirm() {
-    if (!start || !end) { setResult("🚫 출발지와 도착지를 모두 선택하세요."); setHasSavedRoute(false); return; }
-    // 좌표 문자열 → 숫자
-    const sx = +start.x, sy = +start.y, ex = +end.x, ey = +end.y;
-    const d = km(sy, sx, ey, ex); const f = fare(d);
-    setResult(`출발지: ${label(start)}\n도착지: ${label(end)}\n거리: ${d.toFixed(2)} km\n예상 요금: 약 ${Math.round(f).toLocaleString()}원`);
-    // 네이버 Static Map 프록시
-    setMapUrl(`/api/static-map?startX=${sx}&startY=${sy}&endX=${ex}&endY=${ey}`);
-    localStorage.setItem("start", JSON.stringify(start));
-    localStorage.setItem("end", JSON.stringify(end));
-    setHasSavedRoute(true);
+  async function confirm() {
+    if (!start || !end) {
+      setResult("🚫 출발지와 도착지를 모두 선택하세요.");
+      setHasSavedRoute(false);
+      return;
+    }
+
+    try {
+      setError(null);
+      const startLabel = label(start);
+      const endLabel = label(end);
+      const [startGeo, endGeo] = await Promise.all([
+        geocodeWithNaver(startLabel),
+        geocodeWithNaver(endLabel)
+      ]);
+
+      const nextStart = { ...start, x: startGeo.x, y: startGeo.y };
+      const nextEnd = { ...end, x: endGeo.x, y: endGeo.y };
+
+      setStart(nextStart);
+      setEnd(nextEnd);
+
+      // 좌표 문자열 → 숫자
+      const sx = +nextStart.x, sy = +nextStart.y, ex = +nextEnd.x, ey = +nextEnd.y;
+      const d = km(sy, sx, ey, ex);
+      const f = fare(d);
+
+      setResult(
+        `출발지: ${label(nextStart)}\n도착지: ${label(nextEnd)}\n거리: ${d.toFixed(2)} km\n예상 요금: 약 ${Math.round(f).toLocaleString()}원`
+      );
+      // 네이버 Static Map 프록시
+      setMapUrl(`/api/static-map?startX=${sx}&startY=${sy}&endX=${ex}&endY=${ey}`);
+
+      localStorage.setItem("start", JSON.stringify(nextStart));
+      localStorage.setItem("end", JSON.stringify(nextEnd));
+      localStorage.setItem("start_naver", JSON.stringify(startGeo));
+      localStorage.setItem("end_naver", JSON.stringify(endGeo));
+
+      setHasSavedRoute(true);
+    } catch (err) {
+      const message = (err as Error)?.message || "네이버 좌표를 불러오는 중 문제가 발생했어요.";
+      setError(message);
+      setResult("🚫 네이버 좌표 조회에 실패했어요. 다시 시도해주세요.");
+      setMapUrl("");
+      setHasSavedRoute(false);
+    }
   }
 
   const detailDisabled = !hasSavedRoute;
@@ -237,7 +285,7 @@ export default function ExpressPage() {
         </div>
 
         <div>
-          <button onClick={confirm}>경로 계산</button>
+          <button onClick={() => { void confirm(); }}>경로 계산</button>
         </div>
       </div>
 
