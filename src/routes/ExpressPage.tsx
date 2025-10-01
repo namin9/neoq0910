@@ -54,7 +54,7 @@ export default function ExpressPage() {
    */
   async function suggest(q: string, signal?: AbortSignal): Promise<Addr[]> {
     if (q.trim().length < 2) return [];
-    const r = await fetch(`/api/suggest?q=${encodeURIComponent(q)}&provider=kakao`, { signal });
+    const r = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`, { signal });
     if (!r.ok) {
       throw new Error("주소/장소 추천 중 오류가 발생했어요.");
     }
