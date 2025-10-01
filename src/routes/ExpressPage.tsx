@@ -60,13 +60,19 @@ export default function ExpressPage() {
     }
     const d = await r.json();
     const items: any[] = d.items || [];
-    return items.map((it) => ({
-      x: String(it.x),
-      y: String(it.y),
-      // Suggest는 title/subtitle만 오므로 라벨로 매핑
-      roadAddress: it.title,           // 메인 라벨
-      jibunAddress: it.subtitle || ""  // 보조 라벨
-    })) as Addr[];
+    return items
+      .filter((it) => {
+        const x = Number(it.x);
+        const y = Number(it.y);
+        return Number.isFinite(x) && Number.isFinite(y);
+      })
+      .map((it) => ({
+        x: String(it.x),
+        y: String(it.y),
+        // Suggest는 title/subtitle만 오므로 라벨로 매핑
+        roadAddress: it.title,           // 메인 라벨
+        jibunAddress: it.subtitle || ""  // 보조 라벨
+      })) as Addr[];
   }
 
   /** (참고) 기존 Haversine/요금 로직은 그대로 사용 */
