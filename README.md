@@ -6,5 +6,5 @@ The serverless functions rely on several third-party map providers. Set the foll
 
 - `KAKAO_REST_KEY` – Kakao Local REST API key used for keyword and address search.
 - `NAVER_SEARCH_CLIENT_ID` / `NAVER_SEARCH_CLIENT_SECRET` – credentials for the Naver Local Search API.
-- `NAVER_GEOCODE_KEY_ID` / `NAVER_GEOCODE_KEY` – Naver Cloud Platform Map Geocode API credentials used to turn addresses returned from Local Search into coordinates.
+- `NAVER_GEOCODE_KEY_ID` / `NAVER_GEOCODE_KEY` – Naver Cloud Platform Map Geocode API credentials used to turn addresses returned from Local Search into coordinates. For backwards compatibility the code also accepts `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` and will fall back to those if the dedicated keys are not set.
 - `MAPBOX_TOKEN` – Mapbox access token for geocoding fallbacks.
