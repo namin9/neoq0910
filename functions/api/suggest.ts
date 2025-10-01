@@ -1,6 +1,27 @@
 type Item = { type: "place"|"address"; title: string; subtitle?: string; x: number; y: number; };
 type Provider = "kakao" | "naver-local" | "mapbox";
 
+async function fromNaverGeocode(address: string, env: any): Promise<{ x: number; y: number } | null> {
+  const id = (env.NAVER_GEOCODE_KEY_ID || "").trim();
+  const key = (env.NAVER_GEOCODE_KEY || "").trim();
+  const query = address.trim();
+  if (!id || !key || !query) return null;
+  try {
+    const r = await fetch(
+      "https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode?query=" + encodeURIComponent(query),
+      { headers: { "X-NCP-APIGW-API-KEY-ID": id, "X-NCP-APIGW-API-KEY": key } }
+    );
+    if (!r.ok) return null;
+    const j = await r.json().catch(() => ({} as any));
+    const first = (j.addresses || [])[0];
+    const x = Number(first?.x);
+    const y = Number(first?.y);
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+  } catch {
+    return null;
+  }
+}
+
 async function fromKakao(q: string, env: any): Promise<Item[]> {
   const key = (env.KAKAO_REST_KEY || "").trim();
   if (!key) return [];
@@ -51,13 +72,21 @@ async function fromNaverLocal(q: string, env: any): Promise<Item[]> {
   if (!r.ok) return [];
   const j = await r.json().catch(() => ({} as any));
   const raw = j.items || [];
-  // 네이버 Local은 좌표 일관성이 떨어질 수 있어 주소만 우선 표시(좌표는 카카오/맵박스로 보강)
-  return raw.map((it: any) => ({
-    type: "place",
-    title: String(it.title || "").replace(/<[^>]+>/g, ""),
-    subtitle: it.roadAddress || it.address || "",
-    x: NaN, y: NaN
-  }));
+  const geocodeCache = new Map<string, { x: number; y: number } | null>();
+  const out: Item[] = [];
+  for (const it of raw) {
+    const title = String(it.title || "").replace(/<[^>]+>/g, "");
+    const subtitle = (it.roadAddress || it.address || "").trim();
+    if (!subtitle) continue;
+    let coords = geocodeCache.get(subtitle);
+    if (!geocodeCache.has(subtitle)) {
+      coords = await fromNaverGeocode(subtitle, env);
+      geocodeCache.set(subtitle, coords || null);
+    }
+    if (!coords) continue;
+    out.push({ type: "place", title, subtitle, x: coords.x, y: coords.y });
+  }
+  return out;
 }
 
 async function fromMapbox(q: string, env: any): Promise<Item[]> {
@@ -92,6 +121,8 @@ export const onRequestGet: PagesFunction<{
   KAKAO_REST_KEY?: string;
   NAVER_SEARCH_CLIENT_ID?: string;
   NAVER_SEARCH_CLIENT_SECRET?: string;
+  NAVER_GEOCODE_KEY_ID?: string;
+  NAVER_GEOCODE_KEY?: string;
   MAPBOX_TOKEN?: string;
 }> = async ({ request, env }) => {
   const u = new URL(request.url);
