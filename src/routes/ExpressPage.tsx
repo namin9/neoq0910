@@ -229,14 +229,39 @@ export default function ExpressPage() {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
               value={startInput}
-              onChange={(e) => { setStartInput(e.target.value); setError(null); }}
+              onChange={(e) => {
+                setStartInput(e.target.value);
+                setError(null);
+                if (start) {
+                  setStart(null);
+                }
+                setStartSuggestions([]);
+                setStartHasSearched(false);
+                if (hasSavedRoute) {
+                  setHasSavedRoute(false);
+                  setMapUrl("");
+                }
+              }}
               placeholder="출발지 주소/장소를 입력하세요"
               style={{ flex: 1, padding: "8px 12px", borderRadius: 4, border: "1px solid #ccc" }}
             />
             {start ? (
               <>
                 <span style={{ fontSize: 12, color: "#555" }}>{label(start)} ({start.y}, {start.x})</span>
-                <button type="button" onClick={() => { setStart(null); setStartInput(""); setStartSuggestions([]); setError(null); }}>초기화</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStart(null);
+                    setStartInput("");
+                    setStartSuggestions([]);
+                    setStartHasSearched(false);
+                    setError(null);
+                    if (hasSavedRoute) {
+                      setHasSavedRoute(false);
+                      setMapUrl("");
+                    }
+                  }}
+                >초기화</button>
               </>
             ) : (
               <span style={{ fontSize: 12, color: "#888" }}>미선택</span>
@@ -250,6 +275,10 @@ export default function ExpressPage() {
               setStartInput(label(addr));
               setStartSuggestions([]);
               setError(null);
+              if (hasSavedRoute) {
+                setHasSavedRoute(false);
+                setMapUrl("");
+              }
             }}
           />
         </div>
@@ -259,14 +288,39 @@ export default function ExpressPage() {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
               value={endInput}
-              onChange={(e) => { setEndInput(e.target.value); setError(null); }}
+              onChange={(e) => {
+                setEndInput(e.target.value);
+                setError(null);
+                if (end) {
+                  setEnd(null);
+                }
+                setEndSuggestions([]);
+                setEndHasSearched(false);
+                if (hasSavedRoute) {
+                  setHasSavedRoute(false);
+                  setMapUrl("");
+                }
+              }}
               placeholder="도착지 주소/장소를 입력하세요"
               style={{ flex: 1, padding: "8px 12px", borderRadius: 4, border: "1px solid #ccc" }}
             />
             {end ? (
               <>
                 <span style={{ fontSize: 12, color: "#555" }}>{label(end)} ({end.y}, {end.x})</span>
-                <button type="button" onClick={() => { setEnd(null); setEndInput(""); setEndSuggestions([]); setError(null); }}>초기화</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEnd(null);
+                    setEndInput("");
+                    setEndSuggestions([]);
+                    setEndHasSearched(false);
+                    setError(null);
+                    if (hasSavedRoute) {
+                      setHasSavedRoute(false);
+                      setMapUrl("");
+                    }
+                  }}
+                >초기화</button>
               </>
             ) : (
               <span style={{ fontSize: 12, color: "#888" }}>미선택</span>
@@ -280,12 +334,19 @@ export default function ExpressPage() {
               setEndInput(label(addr));
               setEndSuggestions([]);
               setError(null);
+              if (hasSavedRoute) {
+                setHasSavedRoute(false);
+                setMapUrl("");
+              }
             }}
           />
         </div>
 
         <div>
-          <button onClick={() => { void confirm(); }}>경로 계산</button>
+          <button
+            onClick={() => { void confirm(); }}
+            disabled={!start || !end}
+          >경로 계산</button>
         </div>
       </div>
 
