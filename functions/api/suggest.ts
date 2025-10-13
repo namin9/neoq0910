@@ -101,7 +101,7 @@ async function fromNaverLocal(q: string, env: SuggestEnv): Promise<Item[]> {
     }
     return out;
   } catch (err) {
-    console.warn("Failed to fetch suggestions from Naver Local", err);
+
     return [];
   }
 }
@@ -123,7 +123,6 @@ async function fromMapbox(q: string, env: SuggestEnv): Promise<Item[]> {
       y: Number(f.center?.[1]),
     })).filter((it: Item) => Number.isFinite(it.x) && Number.isFinite(it.y));
   } catch (err) {
-    console.warn("Failed to fetch suggestions from Mapbox", err);
     return [];
   }
 }
