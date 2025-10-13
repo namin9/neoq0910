@@ -1,4 +1,5 @@
-type Item = { type: "place"|"address"; title: string; subtitle?: string; x: number; y: number; };
+export type SuggestItem = { type: "place"|"address"; title: string; subtitle?: string; x: number; y: number; };
+type Item = SuggestItem;
 type Provider = "kakao" | "naver-local" | "mapbox";
 type SuggestEnv = {
   KAKAO_REST_KEY?: string;
@@ -8,6 +9,8 @@ type SuggestEnv = {
   NAVER_GEOCODE_KEY?: string;
   MAPBOX_TOKEN?: string;
 };
+
+import { suggestFromFallback } from "./suggestFallback";
 
 async function fromNaverGeocode(address: string, env: SuggestEnv): Promise<{ x: number; y: number } | null> {
   const id = (env.NAVER_GEOCODE_KEY_ID || "").trim();
@@ -98,7 +101,7 @@ async function fromNaverLocal(q: string, env: SuggestEnv): Promise<Item[]> {
     }
     return out;
   } catch (err) {
-    console.debug?.("naver-local suggestion fetch failed", err);
+
     return [];
   }
 }
@@ -120,7 +123,6 @@ async function fromMapbox(q: string, env: SuggestEnv): Promise<Item[]> {
       y: Number(f.center?.[1]),
     })).filter((it: Item) => Number.isFinite(it.x) && Number.isFinite(it.y));
   } catch (err) {
-    console.debug?.("mapbox suggestion fetch failed", err);
     return [];
   }
 }
@@ -156,6 +158,13 @@ export const onRequestGet: PagesFunction<SuggestEnv> = async ({ request, env }) 
     else if (p === "mapbox") chunk = await fromMapbox(q, env);
     items = items.concat(chunk);
     if (items.length >= limit) break;
+  }
+
+  if (items.length < limit) {
+    const fallback = suggestFromFallback(q, limit - items.length);
+    if (fallback.length) {
+      items = items.concat(fallback);
+    }
   }
 
   return new Response(JSON.stringify({ items: dedup(items, limit) }), {
