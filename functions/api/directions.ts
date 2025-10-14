@@ -10,6 +10,7 @@ export const onRequestGet: PagesFunction<{
     const sy = u.searchParams.get("startY");
     const ex = u.searchParams.get("endX");
     const ey = u.searchParams.get("endY");
+    const waypoints = (u.searchParams.get("waypoints") || "").trim();
     if (!sx || !sy || !ex || !ey) {
       return new Response(JSON.stringify({ error: "Missing coords" }), {
         status: 400, headers: { "content-type": "application/json; charset=utf-8" }
@@ -155,14 +156,6 @@ export const onRequestGet: PagesFunction<{
       (env.NAVER_GEOCODE_KEY || env.NAVER_CLIENT_SECRET || "").trim();
 
     // ⚠️ Directions는 경도,위도(lon,lat) 순서
-    const waypointQuery = waypointCoords
-      .map(({ lon, lat }) => `${lon},${lat}`)
-      .join("|");
-    const api =
-      `https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving` +
-      `?start=${sx},${sy}&goal=${ex},${ey}&option=trafast` +
-      (waypointQuery ? `&waypoints=${encodeURIComponent(waypointQuery)}` : "");
-
     const r = await fetch(api, {
       headers: {
         "Accept": "application/json",

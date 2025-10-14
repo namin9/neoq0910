@@ -1,8 +1,41 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 /** 기존 타입 유지: 아래에서 Suggest 응답을 이 형태로 매핑해서 재사용 */
 type Addr = { x: string; y: string; roadAddress?: string; jibunAddress?: string };
+
+type TrafastSummary = {
+  distance: number;
+  duration: number;
+  tollFare?: number;
+  taxiFare?: number;
+  fuelPrice?: number;
+};
+
+type DirectionsResponse = {
+  route?: {
+    trafast?: {
+      summary?: TrafastSummary;
+    }[];
+  };
+  message?: string;
+  error?: string;
+};
+
+type StoredRoute = {
+  start: Addr;
+  end: Addr;
+  waypoints: Addr[];
+  summary?: TrafastSummary | null;
+};
+
+type WaypointState = {
+  id: number;
+  addr: Addr | null;
+  input: string;
+  suggestions: Addr[];
+  hasSearched: boolean;
+};
 
 type SuggestionListProps = {
   items: Addr[];
@@ -40,12 +73,17 @@ export default function ExpressPage() {
   const [endInput, setEndInput] = useState("");
   const [startSuggestions, setStartSuggestions] = useState<Addr[]>([]);
   const [endSuggestions, setEndSuggestions] = useState<Addr[]>([]);
+  const [waypoints, setWaypoints] = useState<WaypointState[]>([]);
   const [result, setResult] = useState("");
   const [mapUrl, setMapUrl] = useState("");
   const [hasSavedRoute, setHasSavedRoute] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [startHasSearched, setStartHasSearched] = useState(false);
   const [endHasSearched, setEndHasSearched] = useState(false);
+  const waypointTimers = useRef<Record<number, number>>({});
+  const waypointControllers = useRef<Record<number, AbortController | null>>({});
+  const STORAGE_KEY = "expressRoute";
+  const MAX_WAYPOINTS = 3;
 
   /**
    * ✅ 변경 1) 자동완성 소스: /api/suggest 로 변경
@@ -85,6 +123,28 @@ export default function ExpressPage() {
   const fare = (k: number) => 3800 + Math.max(0, k - 1.6) * 1000 * (100 / 132);
 
   const label = (a: Addr) => a.roadAddress || a.jibunAddress || `${a.y}, ${a.x}`;
+  const meterToReadable = (m?: number) => {
+    if (!m && m !== 0) return "-";
+    if (m >= 1000) return `${(m / 1000).toFixed(1)} km`;
+    return `${Math.round(m)} m`;
+  };
+  const msToReadable = (ms?: number) => {
+    if (!ms && ms !== 0) return "-";
+    const totalSec = Math.round(ms / 1000);
+    const hours = Math.floor(totalSec / 3600);
+    const minutes = Math.floor((totalSec % 3600) / 60);
+    const seconds = totalSec % 60;
+    const parts = [
+      hours ? `${hours}시간` : null,
+      minutes ? `${minutes}분` : null,
+      !hours && !minutes ? `${seconds}초` : null
+    ].filter(Boolean);
+    return parts.join(" ") || "0초";
+  };
+  const formatCurrency = (n?: number) => {
+    if (!n && n !== 0) return "-";
+    return `${Math.round(n).toLocaleString()}원`;
+  };
 
   async function geocodeWithNaver(query: string): Promise<{ x: string; y: string }> {
     const response = await fetch(`/api/geocode?query=${encodeURIComponent(query)}`);
@@ -145,62 +205,23 @@ export default function ExpressPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const savedStart = window.localStorage.getItem("start");
-    const savedEnd = window.localStorage.getItem("end");
-    setHasSavedRoute(!!(savedStart && savedEnd));
+    const savedRoute = window.localStorage.getItem(STORAGE_KEY);
+    setHasSavedRoute(!!savedRoute);
   }, []);
 
-  async function confirm() {
-    if (!start || !end) {
-      setResult("🚫 출발지와 도착지를 모두 선택하세요.");
-      setHasSavedRoute(false);
-      return;
-    }
+  useEffect(() => {
+    return () => {
+      Object.values(waypointTimers.current).forEach((timerId) => window.clearTimeout(timerId));
+      Object.values(waypointControllers.current).forEach((controller) => controller?.abort());
+    };
+  }, []);
 
-    try {
-      setError(null);
-      const startLabel = label(start);
-      const endLabel = label(end);
-      const [startGeo, endGeo] = await Promise.all([
-        geocodeWithNaver(startLabel),
-        geocodeWithNaver(endLabel)
-      ]);
-
-      const nextStart = { ...start, x: startGeo.x, y: startGeo.y };
-      const nextEnd = { ...end, x: endGeo.x, y: endGeo.y };
-
-      setStart(nextStart);
-      setEnd(nextEnd);
-
-      // 좌표 문자열 → 숫자
-      const sx = +nextStart.x, sy = +nextStart.y, ex = +nextEnd.x, ey = +nextEnd.y;
-      const d = km(sy, sx, ey, ex);
-      const f = fare(d);
-
-      setResult(
-        `출발지: ${label(nextStart)}\n도착지: ${label(nextEnd)}\n거리: ${d.toFixed(2)} km\n예상 요금: 약 ${Math.round(f).toLocaleString()}원`
-      );
-      // 네이버 Static Map 프록시
-      setMapUrl(`/api/static-map?startX=${sx}&startY=${sy}&endX=${ex}&endY=${ey}`);
-
-      localStorage.setItem("start", JSON.stringify(nextStart));
-      localStorage.setItem("end", JSON.stringify(nextEnd));
-      localStorage.setItem("start_naver", JSON.stringify(startGeo));
-      localStorage.setItem("end_naver", JSON.stringify(endGeo));
-
-      setHasSavedRoute(true);
-    } catch (err) {
-      const message = (err as Error)?.message || "네이버 좌표를 불러오는 중 문제가 발생했어요.";
-      setError(message);
-      setResult("🚫 네이버 좌표 조회에 실패했어요. 다시 시도해주세요.");
-      setMapUrl("");
-      setHasSavedRoute(false);
     }
   }
 
   const detailDisabled = !hasSavedRoute;
   const detailHint = detailDisabled
-    ? "ℹ️ 출발지와 도착지를 선택하고 \"경로 계산\"을 눌러주세요."
+    ? "ℹ️ 네이버 경로 요약이 저장된 이후에만 상세 요약을 볼 수 있어요. 경로를 계산해주세요."
     : "ℹ️ 최신 경로 기준으로 상세 요약을 확인할 수 있어요.";
 
   const startEmptyMessage = startInput.trim().length < 2
@@ -340,6 +361,49 @@ export default function ExpressPage() {
               }
             }}
           />
+        </div>
+
+        {waypoints.map((wp, idx) => (
+          <div key={wp.id}>
+            <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>경유지 {idx + 1}</label>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                value={wp.input}
+                onChange={(e) => { handleWaypointInputChange(wp.id, e.target.value); setError(null); }}
+                placeholder="경유지 주소/장소를 입력하세요"
+                style={{ flex: 1, padding: "8px 12px", borderRadius: 4, border: "1px solid #ccc" }}
+              />
+              {wp.addr ? (
+                <>
+                  <span style={{ fontSize: 12, color: "#555" }}>{label(wp.addr)} ({wp.addr.y}, {wp.addr.x})</span>
+                  <button type="button" onClick={() => handleWaypointClear(wp.id)}>초기화</button>
+                </>
+              ) : (
+                <span style={{ fontSize: 12, color: "#888" }}>미선택</span>
+              )}
+              <button type="button" onClick={() => removeWaypoint(wp.id)} aria-label={`경유지 ${idx + 1} 삭제`}>
+                삭제
+              </button>
+            </div>
+            <SuggestionList
+              items={wp.suggestions}
+              emptyMessage={getWaypointEmptyMessage(wp)}
+              onSelect={(addr) => handleWaypointSelect(wp.id, addr)}
+            />
+          </div>
+        ))}
+
+        <div>
+          <button
+            type="button"
+            onClick={addWaypoint}
+            disabled={waypoints.length >= MAX_WAYPOINTS}
+          >
+            경유지 추가
+          </button>
+          {waypoints.length >= MAX_WAYPOINTS && (
+            <span style={{ marginLeft: 8, fontSize: 12, color: "#666" }}>경유지는 최대 {MAX_WAYPOINTS}개까지 추가할 수 있어요.</span>
+          )}
         </div>
 
         <div>

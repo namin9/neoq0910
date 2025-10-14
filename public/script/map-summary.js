@@ -29,6 +29,8 @@ const formatCurrency = (n) => {
   return `${Math.round(n).toLocaleString()}원`;
 };
 
+const STORAGE_KEY = "expressRoute";
+
 const selectAll = (selector) => Array.from(document.querySelectorAll(selector));
 const updateText = (key, value) => {
   const targets = new Set([
@@ -80,8 +82,8 @@ async function initialise() {
   const mapSection = document.querySelector("[data-role='map-section']");
   const mapImg = document.querySelector("[data-role='map-preview']");
 
-  const startRaw = window.localStorage ? window.localStorage.getItem("start") : null;
-  const endRaw = window.localStorage ? window.localStorage.getItem("end") : null;
+  const storage = window.localStorage;
+  const savedRoute = storage ? storage.getItem(STORAGE_KEY) : null;
 
   container.classList.remove("state-error");
   if (errorEl) {
@@ -89,24 +91,63 @@ async function initialise() {
     errorEl.classList.add("hidden");
   }
 
-  if (!startRaw || !endRaw) {
-    if (errorEl) {
-      errorEl.textContent = "저장된 출발/도착 정보가 없습니다. 특송 경로 계산 화면에서 경로를 먼저 계산해주세요.";
-      showElement(errorEl, true);
-    }
-    showElement(loadingEl, false);
-    showElement(summarySection, false);
-    showElement(mapSection, false);
-    showElement(guideList?.closest("section"), false);
-    container.classList.add("state-error");
-    return;
-  }
-
   try {
-    const parsedStart = JSON.parse(startRaw);
-    const parsedEnd = JSON.parse(endRaw);
+    let parsedRoute = null;
+    if (savedRoute) {
+      parsedRoute = JSON.parse(savedRoute);
+    } else {
+      const startRaw = storage?.getItem("start") || null;
+      const endRaw = storage?.getItem("end") || null;
+      if (startRaw && endRaw) {
+        parsedRoute = { start: JSON.parse(startRaw), end: JSON.parse(endRaw), waypoints: [], summary: null };
+      }
+    }
+
+    if (!parsedRoute?.start || !parsedRoute?.end) {
+      throw new Error("저장된 출발/도착 정보가 없습니다. 특송 경로 계산 화면에서 경로를 먼저 계산해주세요.");
+    }
+
+    const parsedStart = parsedRoute.start;
+    const parsedEnd = parsedRoute.end;
+    const parsedWaypoints = Array.isArray(parsedRoute.waypoints) ? parsedRoute.waypoints.filter(Boolean) : [];
+
     updateText("start", label(parsedStart));
     updateText("end", label(parsedEnd));
+
+    const waypointSection = document.querySelector("[data-field-section='waypoints']");
+    const waypointList = document.querySelector("[data-role='waypoints']");
+    if (parsedWaypoints.length && waypointList) {
+      waypointList.innerHTML = "";
+      parsedWaypoints.forEach((wp, idx) => {
+        const li = document.createElement("li");
+        li.textContent = `경유지 ${idx + 1}: ${label(wp)}`;
+        waypointList.append(li);
+      });
+      showElement(waypointSection, true);
+    } else if (waypointSection) {
+      waypointList && (waypointList.innerHTML = "");
+      showElement(waypointSection, false);
+    }
+
+    if (parsedRoute.summary) {
+      updateText("distance", meterToReadable(parsedRoute.summary.distance));
+      updateText("duration", msToReadable(parsedRoute.summary.duration));
+      const taxiRow = document.querySelector("[data-field-section='taxiFare']");
+      if (parsedRoute.summary.taxiFare !== undefined) {
+        updateText("taxiFare", formatCurrency(parsedRoute.summary.taxiFare));
+        showElement(taxiRow, true);
+      } else {
+        showElement(taxiRow, false);
+      }
+      const fuelRow = document.querySelector("[data-field-section='fuelPrice']");
+      if (parsedRoute.summary.fuelPrice !== undefined) {
+        updateText("fuelPrice", formatCurrency(parsedRoute.summary.fuelPrice));
+        showElement(fuelRow, true);
+      } else {
+        showElement(fuelRow, false);
+      }
+      showElement(summarySection, true);
+    }
 
     const params = new URLSearchParams({
       startX: parsedStart.x,
@@ -114,6 +155,9 @@ async function initialise() {
       endX: parsedEnd.x,
       endY: parsedEnd.y
     });
+    if (parsedWaypoints.length) {
+      params.set("waypoints", parsedWaypoints.map((wp) => `${wp.x},${wp.y}`).join("|"));
+    }
 
     if (mapImg) {
       mapImg.src = `/api/static-map?${params.toString()}`;
@@ -166,6 +210,9 @@ async function initialise() {
         showElement(guideList.closest("section"), false);
       }
 
+      const updated = { start: parsedStart, end: parsedEnd, waypoints: parsedWaypoints, summary };
+      storage?.setItem(STORAGE_KEY, JSON.stringify(updated));
+
       showElement(summarySection, true);
     } catch (err) {
       console.error(err);
@@ -182,7 +229,8 @@ async function initialise() {
   } catch (err) {
     console.error(err);
     if (errorEl) {
-      errorEl.textContent = "저장된 위치 정보를 해석할 수 없습니다. 다시 경로를 계산해주세요.";
+      const message = err instanceof Error ? err.message : "저장된 위치 정보를 해석할 수 없습니다. 다시 경로를 계산해주세요.";
+      errorEl.textContent = message;
       showElement(errorEl, true);
     }
     showElement(summarySection, false);
