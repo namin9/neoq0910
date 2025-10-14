@@ -10,8 +10,10 @@ function resolveBase(env: Record<string, string | undefined>, override?: NcpHost
 }
 
 export const onRequestGet: PagesFunction<{
-  NAVER_CLIENT_ID: string;
-  NAVER_CLIENT_SECRET: string;
+  NAVER_GEOCODE_KEY_ID?: string;
+  NAVER_GEOCODE_KEY?: string;
+  NAVER_CLIENT_ID?: string;
+  NAVER_CLIENT_SECRET?: string;
   NAVER_MAPS_HOST?: string;
 }> = async ({ request, env }) => {
   const u = new URL(request.url);
@@ -26,8 +28,9 @@ export const onRequestGet: PagesFunction<{
   const hostOverride = (u.searchParams.get("host") as NcpHost | null) || undefined;
 
   const origin = request.headers.get("Origin") || `${u.protocol}//${u.host}`;
-  const keyId  = (env.NAVER_CLIENT_ID || "").trim();
-  const keySec = (env.NAVER_CLIENT_SECRET || "").trim();
+  const keyId =
+    (env.NAVER_GEOCODE_KEY_ID || env.NAVER_CLIENT_ID || "").trim();
+  const keySec = (env.NAVER_GEOCODE_KEY || env.NAVER_CLIENT_SECRET || "").trim();
 
   const path = `/map-geocode/v2/geocode?query=${encodeURIComponent(q)}`;
   const headers: HeadersInit = {

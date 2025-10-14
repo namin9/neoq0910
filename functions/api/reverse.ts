@@ -1,5 +1,7 @@
 export const onRequestGet: PagesFunction<{
   KAKAO_REST_KEY?: string;
+  NAVER_GEOCODE_KEY_ID?: string;
+  NAVER_GEOCODE_KEY?: string;
   NAVER_CLIENT_ID?: string;
   NAVER_CLIENT_SECRET?: string;
 }> = async ({ request, env }) => {
@@ -21,8 +23,8 @@ export const onRequestGet: PagesFunction<{
   }
 
   // 네이버(클라우드)로 하고 싶다면:
-  const id  = (env.NAVER_CLIENT_ID || "").trim();
-  const sec = (env.NAVER_CLIENT_SECRET || "").trim();
+  const id = (env.NAVER_GEOCODE_KEY_ID || env.NAVER_CLIENT_ID || "").trim();
+  const sec = (env.NAVER_GEOCODE_KEY || env.NAVER_CLIENT_SECRET || "").trim();
   const r = await fetch(`https://naveropenapi.apigw.ntruss.com/map-reversegeocode/v2/gc?coords=${encodeURIComponent(x)},${encodeURIComponent(y)}&output=json&orders=roadaddr,addr`, {
     headers: { "X-NCP-APIGW-API-KEY-ID": id, "X-NCP-APIGW-API-KEY": sec }
   });

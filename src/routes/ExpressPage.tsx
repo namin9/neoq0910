@@ -146,6 +146,19 @@ export default function ExpressPage() {
     return `${Math.round(n).toLocaleString()}원`;
   };
 
+  async function geocodeWithNaver(query: string): Promise<{ x: string; y: string }> {
+    const response = await fetch(`/api/geocode?query=${encodeURIComponent(query)}`);
+    if (!response.ok) {
+      throw new Error("네이버 지오코딩 호출에 실패했어요. 잠시 후 다시 시도해주세요.");
+    }
+    const data = await response.json();
+    const first = data?.addresses?.[0];
+    if (!first || !first.x || !first.y) {
+      throw new Error("네이버에서 좌표를 찾지 못했어요. 다른 주소로 검색해 주세요.");
+    }
+    return { x: String(first.x), y: String(first.y) };
+  }
+
   /** ✅ 변경 2) startInput → /api/suggest */
   useEffect(() => {
     const controller = new AbortController();
@@ -203,161 +216,6 @@ export default function ExpressPage() {
     };
   }, []);
 
-  const handleWaypointInputChange = (id: number, value: string) => {
-    setWaypoints((prev) => prev.map((wp) => wp.id === id ? { ...wp, input: value, hasSearched: false, suggestions: [] } : wp));
-    if (waypointTimers.current[id]) {
-      window.clearTimeout(waypointTimers.current[id]);
-      delete waypointTimers.current[id];
-    }
-    if (waypointControllers.current[id]) {
-      waypointControllers.current[id]?.abort();
-      delete waypointControllers.current[id];
-    }
-    const trimmed = value.trim();
-    if (trimmed.length < 2) {
-      setWaypoints((prev) => prev.map((wp) => wp.id === id ? { ...wp, suggestions: [], hasSearched: false } : wp));
-      return;
-    }
-    waypointTimers.current[id] = window.setTimeout(async () => {
-      delete waypointTimers.current[id];
-      const controller = new AbortController();
-      waypointControllers.current[id] = controller;
-      try {
-        const addresses = await suggest(trimmed, controller.signal);
-        setWaypoints((prev) => prev.map((wp) => wp.id === id ? { ...wp, suggestions: addresses, hasSearched: true } : wp));
-        setError(null);
-      } catch (e) {
-        if ((e as Error).name !== "AbortError") {
-          setError((e as Error).message);
-          setWaypoints((prev) => prev.map((wp) => wp.id === id ? { ...wp, suggestions: [], hasSearched: false } : wp));
-        }
-      } finally {
-        delete waypointControllers.current[id];
-      }
-    }, 350);
-  };
-
-  const handleWaypointSelect = (id: number, addr: Addr) => {
-    setWaypoints((prev) => prev.map((wp) => wp.id === id ? { ...wp, addr, input: label(addr), suggestions: [] } : wp));
-    setError(null);
-  };
-
-  const handleWaypointClear = (id: number) => {
-    if (waypointTimers.current[id]) {
-      window.clearTimeout(waypointTimers.current[id]);
-      delete waypointTimers.current[id];
-    }
-    if (waypointControllers.current[id]) {
-      waypointControllers.current[id]?.abort();
-      delete waypointControllers.current[id];
-    }
-    setWaypoints((prev) => prev.map((wp) => wp.id === id ? { ...wp, addr: null, input: "", suggestions: [], hasSearched: false } : wp));
-  };
-
-  const removeWaypoint = (id: number) => {
-    if (waypointTimers.current[id]) {
-      window.clearTimeout(waypointTimers.current[id]);
-      delete waypointTimers.current[id];
-    }
-    if (waypointControllers.current[id]) {
-      waypointControllers.current[id]?.abort();
-      delete waypointControllers.current[id];
-    }
-    setWaypoints((prev) => prev.filter((wp) => wp.id !== id));
-  };
-
-  const addWaypoint = () => {
-    setWaypoints((prev) => {
-      const nextId = prev.reduce((acc, cur) => Math.max(acc, cur.id), 0) + 1;
-      return [...prev, { id: nextId, addr: null, input: "", suggestions: [], hasSearched: false }];
-    });
-  };
-
-  const getWaypointEmptyMessage = (wp: WaypointState) => {
-    if (wp.input.trim().length < 2) return "2자 이상 입력해주세요.";
-    if (!error && wp.hasSearched && wp.suggestions.length === 0) return "검색 결과가 없어요.";
-    return undefined;
-  };
-
-  async function confirm() {
-    if (!start || !end) { setResult("🚫 출발지와 도착지를 모두 선택하세요."); setHasSavedRoute(false); return; }
-    const hasPendingWaypoint = waypoints.some((wp) => wp.input.trim().length > 0 && !wp.addr);
-    if (hasPendingWaypoint) { setResult("🚫 경유지는 목록에서 선택 후 확정해주세요."); setHasSavedRoute(false); return; }
-
-    const selectedWaypoints = waypoints.filter((wp) => wp.addr).map((wp) => wp.addr as Addr);
-    const sx = +start.x, sy = +start.y, ex = +end.x, ey = +end.y;
-
-    setResult("경로를 계산하는 중입니다...");
-    setHasSavedRoute(false);
-    setError(null);
-    const params = new URLSearchParams({
-      startX: start.x,
-      startY: start.y,
-      endX: end.x,
-      endY: end.y
-    });
-    if (selectedWaypoints.length) {
-      params.set("waypoints", selectedWaypoints.map((wp) => `${wp.x},${wp.y}`).join("|"));
-    }
-
-    try {
-      const res = await fetch(`/api/directions?${params.toString()}`);
-      if (!res.ok) {
-        throw new Error("경로 정보를 불러오지 못했습니다.");
-      }
-      const data: DirectionsResponse = await res.json();
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      const trafast = data.route?.trafast?.[0];
-      const summary = trafast?.summary;
-
-      if (summary) {
-        const distanceText = meterToReadable(summary.distance);
-        const durationText = msToReadable(summary.duration);
-        const fareText = summary.taxiFare !== undefined ? formatCurrency(summary.taxiFare) : "-";
-        const parts = [
-          `출발지: ${label(start)}`,
-          ...selectedWaypoints.map((wp, idx) => `경유지 ${idx + 1}: ${label(wp)}`),
-          `도착지: ${label(end)}`,
-          `총 거리: ${distanceText}`,
-          `예상 소요 시간: ${durationText}`,
-          `예상 요금(택시): ${fareText}`
-        ];
-        setResult(parts.join("\n"));
-        const map = `/api/static-map?startX=${sx}&startY=${sy}&endX=${ex}&endY=${ey}`;
-        setMapUrl(map);
-        const stored: StoredRoute = { start, end, waypoints: selectedWaypoints, summary };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-        localStorage.removeItem("start");
-        localStorage.removeItem("end");
-        setHasSavedRoute(true);
-        setError(null);
-        return;
-      }
-
-      throw new Error(data.message || "경로 요약 데이터를 찾을 수 없습니다.");
-    } catch (err) {
-      console.error(err);
-      const d = km(sy, sx, ey, ex);
-      const f = fare(d);
-      const fallbackParts = [
-        "⚠️ 네이버 경로 요약을 불러오지 못했습니다. 아래 정보는 대략적인 직선 거리 기반 추정치입니다.",
-        `출발지: ${label(start)}`,
-        ...selectedWaypoints.map((wp, idx) => `경유지 ${idx + 1}: ${label(wp)}`),
-        `도착지: ${label(end)}`,
-        `직선 거리: ${d.toFixed(2)} km`,
-        `예상 요금: 약 ${Math.round(f).toLocaleString()}원`
-      ];
-      setResult(fallbackParts.join("\n"));
-      const map = `/api/static-map?startX=${sx}&startY=${sy}&endX=${ex}&endY=${ey}`;
-      setMapUrl(map);
-      const stored: StoredRoute = { start, end, waypoints: selectedWaypoints, summary: null };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-      localStorage.removeItem("start");
-      localStorage.removeItem("end");
-      setHasSavedRoute(false);
-      setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.");
     }
   }
 
@@ -392,14 +250,39 @@ export default function ExpressPage() {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
               value={startInput}
-              onChange={(e) => { setStartInput(e.target.value); setError(null); }}
+              onChange={(e) => {
+                setStartInput(e.target.value);
+                setError(null);
+                if (start) {
+                  setStart(null);
+                }
+                setStartSuggestions([]);
+                setStartHasSearched(false);
+                if (hasSavedRoute) {
+                  setHasSavedRoute(false);
+                  setMapUrl("");
+                }
+              }}
               placeholder="출발지 주소/장소를 입력하세요"
               style={{ flex: 1, padding: "8px 12px", borderRadius: 4, border: "1px solid #ccc" }}
             />
             {start ? (
               <>
                 <span style={{ fontSize: 12, color: "#555" }}>{label(start)} ({start.y}, {start.x})</span>
-                <button type="button" onClick={() => { setStart(null); setStartInput(""); setStartSuggestions([]); setError(null); }}>초기화</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStart(null);
+                    setStartInput("");
+                    setStartSuggestions([]);
+                    setStartHasSearched(false);
+                    setError(null);
+                    if (hasSavedRoute) {
+                      setHasSavedRoute(false);
+                      setMapUrl("");
+                    }
+                  }}
+                >초기화</button>
               </>
             ) : (
               <span style={{ fontSize: 12, color: "#888" }}>미선택</span>
@@ -413,6 +296,10 @@ export default function ExpressPage() {
               setStartInput(label(addr));
               setStartSuggestions([]);
               setError(null);
+              if (hasSavedRoute) {
+                setHasSavedRoute(false);
+                setMapUrl("");
+              }
             }}
           />
         </div>
@@ -422,14 +309,39 @@ export default function ExpressPage() {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
               value={endInput}
-              onChange={(e) => { setEndInput(e.target.value); setError(null); }}
+              onChange={(e) => {
+                setEndInput(e.target.value);
+                setError(null);
+                if (end) {
+                  setEnd(null);
+                }
+                setEndSuggestions([]);
+                setEndHasSearched(false);
+                if (hasSavedRoute) {
+                  setHasSavedRoute(false);
+                  setMapUrl("");
+                }
+              }}
               placeholder="도착지 주소/장소를 입력하세요"
               style={{ flex: 1, padding: "8px 12px", borderRadius: 4, border: "1px solid #ccc" }}
             />
             {end ? (
               <>
                 <span style={{ fontSize: 12, color: "#555" }}>{label(end)} ({end.y}, {end.x})</span>
-                <button type="button" onClick={() => { setEnd(null); setEndInput(""); setEndSuggestions([]); setError(null); }}>초기화</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEnd(null);
+                    setEndInput("");
+                    setEndSuggestions([]);
+                    setEndHasSearched(false);
+                    setError(null);
+                    if (hasSavedRoute) {
+                      setHasSavedRoute(false);
+                      setMapUrl("");
+                    }
+                  }}
+                >초기화</button>
               </>
             ) : (
               <span style={{ fontSize: 12, color: "#888" }}>미선택</span>
@@ -443,6 +355,10 @@ export default function ExpressPage() {
               setEndInput(label(addr));
               setEndSuggestions([]);
               setError(null);
+              if (hasSavedRoute) {
+                setHasSavedRoute(false);
+                setMapUrl("");
+              }
             }}
           />
         </div>
@@ -491,7 +407,10 @@ export default function ExpressPage() {
         </div>
 
         <div>
-          <button onClick={confirm}>경로 계산</button>
+          <button
+            onClick={() => { void confirm(); }}
+            disabled={!start || !end}
+          >경로 계산</button>
         </div>
       </div>
 
